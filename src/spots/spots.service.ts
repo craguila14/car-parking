@@ -4,6 +4,7 @@ import { UpdateSpotDto } from './dto/update-spot.dto';
 import { Spot } from './entities/spot.entity';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
+import { ReservationStatus } from 'src/reservations/entities/reservation.entity';
 
 @Injectable()
 export class SpotsService {
@@ -27,6 +28,25 @@ async update(id: number, dto: UpdateSpotDto) {
       'spot.reservations', 
       'res', 'res.status = :status', 
       { status: 'active' })
+    .getMany();
+}
+
+async findAvailableSpots(startTime: Date, endTime: Date) {
+  return await this.spotRepo.createQueryBuilder('spot')
+    .where(qb => {
+      const subQuery = qb.subQuery()
+        .select('reservation.spotId')
+        .from('Reservation', 'reservation')
+        .where('reservation.status IN (:...statuses)', { 
+          statuses: [ReservationStatus.CONFIRMED, ReservationStatus.ACTIVE] 
+        })
+        .andWhere(
+          '(reservation.startTimeScheduled < :end AND reservation.endTimeScheduled > :start)',
+          { start: startTime, end: endTime }
+        )
+        .getQuery();
+      return 'spot.id NOT IN ' + subQuery;
+    })
     .getMany();
 }
 }

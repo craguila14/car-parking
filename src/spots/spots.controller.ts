@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete, ParseIntPipe, UseGuards } from '@nestjs/common';
+import { Controller, Get, Post, Body, Patch, Param, Delete, ParseIntPipe, UseGuards, Query } from '@nestjs/common';
 import { SpotsService } from './spots.service';
 import { UpdateSpotDto } from './dto/update-spot.dto';
 import { RolesGuard } from 'src/auth/guards/roles.guard';
@@ -24,4 +24,15 @@ export class SpotsController {
   ) {
     return await this.spotsService.update(id, updateSpotDto);
   }
+
+  @Get('available')
+  async getAvailable(
+  @Query('start') start: string,
+  @Query('end') end: string
+) {
+  return await this.spotsService.findAvailableSpots(
+    new Date(start), 
+    new Date(end)
+  );
+}
 }
