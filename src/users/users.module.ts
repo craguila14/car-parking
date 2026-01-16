@@ -10,6 +10,7 @@ import { TypeOrmModule } from '@nestjs/typeorm/dist/typeorm.module';
   providers: [UsersService],
   imports: [
     TypeOrmModule.forFeature([User]),
-  ]
+  ],
+  exports: [UsersService],
 })
 export class UsersModule {}

@@ -6,10 +6,6 @@ export class CreateReservationDto {
   @IsNotEmpty()
   spotId: number;
 
-  @IsUUID()
-  @IsNotEmpty()
-  userId: string;
-
   @Type(() => Date)
   @IsDate()
   @IsNotEmpty()

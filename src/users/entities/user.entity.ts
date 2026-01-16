@@ -1,5 +1,5 @@
-import { Reservation } from 'src/reservations/entities/reservation.entity';
-import { Entity, PrimaryGeneratedColumn, Column, OneToMany } from 'typeorm';
+import { Entity, PrimaryGeneratedColumn, Column, OneToMany, CreateDateColumn, BeforeInsert, BeforeUpdate } from 'typeorm';
+import { Reservation } from '../../reservations/entities/reservation.entity';
 
 export enum UserRole {
   ADMIN = 'admin',
@@ -17,15 +17,32 @@ export class User {
   @Column({ unique: true })
   email: string;
 
-  @Column({ enum: UserRole, default: UserRole.CLIENT })
+  @Column()
+  password: string;
+
+  @Column({
+    type: 'enum',
+    enum: UserRole,
+    default: UserRole.CLIENT,
+  })
   role: UserRole;
 
   @Column({ nullable: true })
-  phone: string;
-
-  @Column({ nullable: true })
-  licensePlate: string; // Patente principal
+  licensePlate: string; 
 
   @OneToMany(() => Reservation, (reservation) => reservation.user)
   reservations: Reservation[];
+
+  @CreateDateColumn()
+  createdAt: Date;
+
+    @BeforeInsert()
+    checkFieldsBeforeInsert() {
+        this.email = this.email.toLowerCase().trim();
+    }
+
+    @BeforeUpdate()
+    checkFieldsBeforeUpdate() {
+        this.checkFieldsBeforeInsert();
+    }
 }

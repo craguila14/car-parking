@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { CreateReservationDto } from './dto/create-reservation.dto';
 import { UpdateReservationDto } from './dto/update-reservation.dto';
 import { InjectRepository } from '@nestjs/typeorm';
@@ -13,7 +13,7 @@ export class ReservationsService {
   ) {}
 
   
-  async create(dto: CreateReservationDto) {
+  async create(dto: CreateReservationDto, userId: string) {
     const hasConflict = await this.checkAvailability(dto.spotId, dto.startTime, dto.endTime);
 
     if (hasConflict) {
@@ -23,7 +23,7 @@ export class ReservationsService {
     const newReservation = this.reservationRepo.create({
     startTimeScheduled: dto.startTime,
     endTimeScheduled: dto.endTime,
-    user: { id: dto.userId }, 
+    user: { id: userId }, 
     spot: { id: dto.spotId },
     status: ReservationStatus.CONFIRMED,
 
@@ -61,6 +61,32 @@ export class ReservationsService {
 }
 
 
+
+async cancel(id: string, userId: string, role: string) {
+  const reservation = await this.reservationRepo.findOne({ 
+    where: { id },
+    relations: ['user'] 
+  });
+
+  if (!reservation) throw new NotFoundException('Reserva no encontrada');
+
+  if (role !== 'admin' && reservation.user.id !== userId) {
+    throw new ForbiddenException('No tienes permiso para cancelar esta reserva');
+  }
+
+  if (reservation.status === ReservationStatus.COMPLETED || 
+      reservation.status === ReservationStatus.CANCELLED) {
+    throw new BadRequestException('La reserva ya ha finalizado o ya estaba cancelada');
+  }
+  
+  if (reservation.status === ReservationStatus.ACTIVE) {
+    throw new BadRequestException('No puedes cancelar una reserva con el auto ya estacionado. Debes hacer Check-out.');
+  }
+
+  reservation.status = ReservationStatus.CANCELLED;
+  return await this.reservationRepo.save(reservation);
+}
+
   private async checkAvailability(spotId: number, start: Date, end: Date, excludeId?: string): Promise<boolean> {
     const query = this.reservationRepo.createQueryBuilder('res')
       .where('res.spotId = :spotId', { spotId })
@@ -79,39 +105,41 @@ export class ReservationsService {
   }
 
 
-  async remove(id: string) {
+async remove(id: string) { 
   const reservation = await this.reservationRepo.findOne({ where: { id } });
   if (!reservation) throw new NotFoundException('La reserva no existe');
 
   if (reservation.status === ReservationStatus.ACTIVE) {
-    throw new BadRequestException('No se puede eliminar una reserva con el auto dentro del parking');
+    throw new BadRequestException('No se puede eliminar una reserva activa.');
   }
 
-  const deletedReservation = await this.reservationRepo.remove(reservation);
-
-  return { message: 'Reserva eliminada correctamente', reservation: deletedReservation };
+  await this.reservationRepo.remove(reservation);
+  return { message: 'Reserva eliminada por el administrador', id };
 }
 
-
-  async checkOut(id: string) {
+async checkIn(id: string) {
   const reservation = await this.reservationRepo.findOne({ where: { id } });
-  
   if (!reservation) throw new NotFoundException('Reserva no encontrada');
+  
+  if (reservation.status !== ReservationStatus.CONFIRMED) {
+    throw new BadRequestException('Solo se puede dar entrada a reservas confirmadas');
+  }
+
+  reservation.actualCheckIn = new Date();
+  reservation.status = ReservationStatus.ACTIVE;
+  return await this.reservationRepo.save(reservation);
+}
+
+async checkOut(id: string) {
+  const reservation = await this.reservationRepo.findOne({ where: { id } });
+  if (!reservation) throw new NotFoundException('Reserva no encontrada');
+  
   if (reservation.status !== ReservationStatus.ACTIVE) {
-    throw new BadRequestException('Solo se puede dar salida a reservas activas (Check-in previo)');
+    throw new BadRequestException('Solo se puede dar salida a reservas activas');
   }
 
   reservation.actualCheckOut = new Date();
   reservation.status = ReservationStatus.COMPLETED;
-
   return await this.reservationRepo.save(reservation);
 }
-
- 
-  async checkIn(id: string) {
-    return await this.reservationRepo.update(id, {
-      actualCheckIn: new Date(),
-      status: ReservationStatus.ACTIVE
-    });
-  }
 }
