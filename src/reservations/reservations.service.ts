@@ -4,6 +4,7 @@ import { UpdateReservationDto } from './dto/update-reservation.dto';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Reservation, ReservationStatus } from './entities/reservation.entity';
+import { CreateWalkInDto } from './dto/create-walk-in.dto';
 
 @Injectable()
 export class ReservationsService {
@@ -12,7 +13,23 @@ export class ReservationsService {
     private readonly reservationRepo: Repository<Reservation>,
   ) {}
 
-  
+  async findAll() {
+  return await this.reservationRepo.find({
+    relations: ['user', 'spot'],
+    order: {
+      startTimeScheduled: 'ASC',
+    },
+  });
+}
+
+async findByUser(userId: string) {
+  return await this.reservationRepo.find({
+    where: { user: { id: userId } },
+    relations: ['spot'],
+    order: { createdAt: 'DESC' }
+  });
+}
+
   async create(dto: CreateReservationDto, userId: string) {
     const hasConflict = await this.checkAvailability(dto.spotId, dto.startTime, dto.endTime);
 
@@ -140,6 +157,22 @@ async checkOut(id: string) {
 
   reservation.actualCheckOut = new Date();
   reservation.status = ReservationStatus.COMPLETED;
+  return await this.reservationRepo.save(reservation);
+}
+
+async createWalkIn(dto: CreateWalkInDto) {
+
+
+  const reservationData = {
+    spot: { id: dto.spotId } as any,
+    adminNotes: dto.licensePlate,
+    startTime: dto.startTime || new Date(),
+    status: ReservationStatus.ACTIVE,
+    actualCheckIn: new Date(), 
+  };
+
+  const reservation = this.reservationRepo.create(reservationData);
+
   return await this.reservationRepo.save(reservation);
 }
 }

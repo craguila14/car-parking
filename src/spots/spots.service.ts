@@ -22,12 +22,15 @@ async update(id: number, dto: UpdateSpotDto) {
   }
 
 
- async getRealTimeStatus() {
+async getRealTimeStatus() {
   return await this.spotRepo.createQueryBuilder('spot')
     .leftJoinAndSelect(
       'spot.reservations', 
-      'res', 'res.status = :status', 
-      { status: 'active' })
+      'res', 
+      'res.status = :status', 
+      { status: 'active' }
+    )
+    .leftJoinAndSelect('res.user', 'usuarioRelacionado') 
     .getMany();
 }
 
@@ -49,4 +52,17 @@ async findAvailableSpots(startTime: Date, endTime: Date) {
     })
     .getMany();
 }
+
+async create(dto: CreateSpotDto) {
+    const newSpot = this.spotRepo.create(dto);
+    return await this.spotRepo.save(newSpot);
+  }
+
+  async remove(id: number) {
+    const spot = await this.spotRepo.findOne({ where: { id } });
+    if (!spot) throw new NotFoundException(`El spot #${id} no existe`);
+    
+    await this.spotRepo.remove(spot);
+    return { deleted: true, id };
+  }
 }

@@ -5,6 +5,7 @@ import { RolesGuard } from 'src/auth/guards/roles.guard';
 import { Roles } from 'src/decorators/roles.decorator';
 import { UserRole } from 'src/users/entities/user.entity';
 import { AuthGuard } from '@nestjs/passport/dist/auth.guard';
+import { CreateSpotDto } from './dto/create-spot.dto';
 
 @Controller('spots')
 export class SpotsController {
@@ -35,4 +36,18 @@ export class SpotsController {
     new Date(end)
   );
 }
+
+@Post()
+  @UseGuards(AuthGuard('jwt'), RolesGuard)
+  @Roles(UserRole.ADMIN)
+  async create(@Body() createSpotDto: CreateSpotDto) {
+    return await this.spotsService.create(createSpotDto);
+  }
+
+  @Delete(':id')
+  @UseGuards(AuthGuard('jwt'), RolesGuard)
+  @Roles(UserRole.ADMIN)
+  async remove(@Param('id', ParseIntPipe) id: number) {
+    return await this.spotsService.remove(id);
+  }
 }

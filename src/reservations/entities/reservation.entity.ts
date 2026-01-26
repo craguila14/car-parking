@@ -16,16 +16,16 @@ export class Reservation {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
-  @ManyToOne(() => User, (user) => user.reservations)
+  @ManyToOne(() => User, (user) => user.reservations, {nullable: true})
   user: User;
 
   @ManyToOne(() => Spot, (spot) => spot.reservations)
   spot: Spot;
 
-  @Column({ type: 'timestamp' })
+  @Column({ type: 'timestamp', nullable: true })
   startTimeScheduled: Date;
 
-  @Column({ type: 'timestamp' })
+  @Column({ type: 'timestamp', nullable: true })
   endTimeScheduled: Date;
 
   @Column({ type: 'timestamp', nullable: true })
